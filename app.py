@@ -86,7 +86,7 @@ def process_csv(data, discount_percentage):
     return output.getvalue(), final_df_filtered_complete
 
 # Interfaccia Streamlit
-st.title("Convertitore da XLSX a CSV e Processor con Sconto")
+st.title("Nike order details")
 
 # Caricamento del file XLSX
 uploaded_file = st.file_uploader("Carica un file XLSX", type="xlsx")
@@ -102,7 +102,7 @@ if uploaded_file is not None:
         # Input per la percentuale di sconto
         discount_percentage = st.number_input("Inserisci la percentuale di sconto", min_value=0.0, max_value=100.0, step=0.1)
 
-        if st.button("Elabora e Scarica"):
+        if st.button("Elabora"):
             # Processa il CSV e calcola il risultato
             processed_file, final_df = process_csv(df, discount_percentage)
 

@@ -100,7 +100,7 @@ if uploaded_file is not None:
 
     if df is not None:
         # Input per la percentuale di sconto
-        discount_percentage = st.number_input("Inserisci la percentuale di sconto", min_value=0.0, max_value=100.0, step=0.1)
+        discount_percentage = st.number_input("Inserisci la percentuale di sconto sul prezzo whl", min_value=0.0, max_value=100.0, step=0.1)
 
         if st.button("Elabora"):
             # Processa il CSV e calcola il risultato

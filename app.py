@@ -4,6 +4,7 @@ from xlsx2csv import Xlsx2csv
 from io import StringIO, BytesIO
 import os
 
+# Funzione per convertire XLSX in CSV
 def convert_xlsx_to_csv(file):
     try:
         output = StringIO()
@@ -15,6 +16,7 @@ def convert_xlsx_to_csv(file):
         st.error(f"Si è verificato un errore durante la conversione: {str(e)}")
         return None
 
+# Funzione per processare il CSV e applicare il calcolo dello sconto
 def process_csv(data, discount_percentage):
     new_data = []
     current_model = None
@@ -81,7 +83,7 @@ def process_csv(data, discount_percentage):
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         final_df_filtered_complete.to_excel(writer, index=False)
 
-    return output.getvalue()
+    return output.getvalue(), final_df_filtered_complete
 
 # Interfaccia Streamlit
 st.title("Convertitore da XLSX a CSV e Processor con Sconto")
@@ -97,15 +99,16 @@ if uploaded_file is not None:
     df = convert_xlsx_to_csv(uploaded_file)
 
     if df is not None:
-        st.write("Anteprima del CSV convertito:")
-        st.write(df)
-
         # Input per la percentuale di sconto
         discount_percentage = st.number_input("Inserisci la percentuale di sconto", min_value=0.0, max_value=100.0, step=0.1)
 
         if st.button("Elabora e Scarica"):
             # Processa il CSV e calcola il risultato
-            processed_file = process_csv(df, discount_percentage)
+            processed_file, final_df = process_csv(df, discount_percentage)
+
+            # Mostra l'anteprima del file elaborato
+            st.write("Anteprima del file elaborato:")
+            st.write(final_df)
 
             # Nome del file processato
             processed_filename = f"{original_filename}_processed.xlsx"

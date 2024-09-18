@@ -84,12 +84,15 @@ def process_csv(data, discount_percentage):
     return output.getvalue()
 
 # Interfaccia Streamlit
-st.title("Nike order details")
+st.title("Convertitore da XLSX a CSV e Processor con Sconto")
 
 # Caricamento del file XLSX
 uploaded_file = st.file_uploader("Carica un file XLSX", type="xlsx")
 
 if uploaded_file is not None:
+    # Estrai il nome del file senza estensione
+    original_filename = os.path.splitext(uploaded_file.name)[0]
+
     # Converti il file XLSX in CSV
     df = convert_xlsx_to_csv(uploaded_file)
 
@@ -104,10 +107,13 @@ if uploaded_file is not None:
             # Processa il CSV e calcola il risultato
             processed_file = process_csv(df, discount_percentage)
 
+            # Nome del file processato
+            processed_filename = f"{original_filename}_processed.xlsx"
+
             # Permetti il download del file Excel elaborato
             st.download_button(
                 label="Scarica il file elaborato",
                 data=processed_file,
-                file_name="processed_file.xlsx",
+                file_name=processed_filename,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )

@@ -4,7 +4,6 @@ from xlsx2csv import Xlsx2csv
 from io import StringIO, BytesIO
 import os
 
-# Funzione per convertire un file XLSX in CSV
 def convert_xlsx_to_csv(file):
     try:
         output = StringIO()
@@ -16,7 +15,6 @@ def convert_xlsx_to_csv(file):
         st.error(f"Si è verificato un errore durante la conversione: {str(e)}")
         return None
 
-# Funzione per processare il CSV e applicare il calcolo dello sconto
 def process_csv(data, discount_percentage):
     new_data = []
     current_model = None
@@ -79,11 +77,9 @@ def process_csv(data, discount_percentage):
 
     final_df_filtered_complete = final_df_filtered_complete[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'Confermati', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'Prezzo totale']]
 
-    # Salva il file Excel in memoria
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         final_df_filtered_complete.to_excel(writer, index=False)
-        writer.save()
 
     return output.getvalue()
 

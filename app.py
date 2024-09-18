@@ -1,10 +1,23 @@
 import streamlit as st
 import pandas as pd
+from xlsx2csv import Xlsx2csv
+from io import StringIO, BytesIO
 import os
-from io import BytesIO
 
+# Funzione per convertire un file XLSX in CSV
+def convert_xlsx_to_csv(file):
+    try:
+        output = StringIO()
+        Xlsx2csv(file, outputencoding="utf-8").convert(output)
+        output.seek(0)
+        df = pd.read_csv(output)
+        return df
+    except Exception as e:
+        st.error(f"Si è verificato un errore durante la conversione: {str(e)}")
+        return None
+
+# Funzione per processare il CSV e applicare il calcolo dello sconto
 def process_csv(data, discount_percentage):
-    # Inizializzazione delle variabili per memorizzare i dati necessari
     new_data = []
     current_model = None
     current_sizes = []
@@ -15,7 +28,6 @@ def process_csv(data, discount_percentage):
     current_upc = []
     current_product_type = None
 
-    # Iterazione attraverso le righe del dataframe per estrarre i dati corretti
     for index, row in data.iterrows():
         if 'Modello/Colore:' in row.values:
             if current_model is not None:
@@ -75,22 +87,31 @@ def process_csv(data, discount_percentage):
 
     return output.getvalue()
 
-# Streamlit interface
-st.title("Elabora CSV con Sconto e Esporta in Excel")
+# Interfaccia Streamlit
+st.title("Convertitore da XLSX a CSV e Processor con Sconto")
 
-uploaded_file = st.file_uploader("Carica un file CSV", type="csv")
-discount_percentage = st.number_input("Inserisci la percentuale di sconto", min_value=0.0, max_value=100.0, step=0.1)
+# Caricamento del file XLSX
+uploaded_file = st.file_uploader("Carica un file XLSX", type="xlsx")
 
 if uploaded_file is not None:
-    # Carica il file CSV
-    data = pd.read_csv(uploaded_file, header=None)
+    # Converti il file XLSX in CSV
+    df = convert_xlsx_to_csv(uploaded_file)
 
-    # Elaborare il file CSV
-    if st.button("Elabora e Scarica"):
-        processed_file = process_csv(data, discount_percentage)
-        st.download_button(
-            label="Scarica il file elaborato",
-            data=processed_file,
-            file_name="processed_file.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+    if df is not None:
+        st.write("Anteprima del CSV convertito:")
+        st.write(df)
+
+        # Input per la percentuale di sconto
+        discount_percentage = st.number_input("Inserisci la percentuale di sconto", min_value=0.0, max_value=100.0, step=0.1)
+
+        if st.button("Elabora e Scarica"):
+            # Processa il CSV e calcola il risultato
+            processed_file = process_csv(df, discount_percentage)
+
+            # Permetti il download del file Excel elaborato
+            st.download_button(
+                label="Scarica il file elaborato",
+                data=processed_file,
+                file_name="processed_file.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )

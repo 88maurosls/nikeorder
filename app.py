@@ -2,7 +2,15 @@ import streamlit as st
 import pandas as pd
 from xlsx2csv import Xlsx2csv
 from io import StringIO, BytesIO
+import re
 import os
+
+# Funzione per estrarre ID_ORDINE dal nome del file
+def extract_order_id(filename):
+    match = re.search(r"_(\d+)_", filename)
+    if match:
+        return match.group(1)
+    return ""
 
 # Funzione per convertire XLSX in CSV
 def convert_xlsx_to_csv(file):
@@ -91,7 +99,7 @@ def process_csv(data, discount_percentage, order_id):
     final_df_filtered_complete = final_df_filtered_complete.fillna('')
 
     # Riorganizza le colonne per l'output finale
-    final_df_filtered_complete = final_df_filtered_complete[['ID_ORDINE', 'Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'Confermati', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'Prezzo totale']]
+    final_df_filtered_complete = final_df_filtered_complete[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Confermati', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'Prezzo totale']]
 
     # Esportazione del DataFrame in Excel
     output = BytesIO()
@@ -107,11 +115,12 @@ st.title("Nike order details")
 uploaded_file = st.file_uploader("Carica un file XLSX", type="xlsx")
 
 if uploaded_file is not None:
-    # Estrai il nome del file senza estensione
+    # Estrai il nome del file senza estensione e prova a ottenere l'ID_ORDINE
     original_filename = os.path.splitext(uploaded_file.name)[0]
+    extracted_order_id = extract_order_id(original_filename)
 
-    # Campo per l'ID ordine
-    order_id = st.text_input("ID_ORDINE")
+    # Campo per l'ID ordine, precompilato con l'ID estratto se disponibile
+    order_id = st.text_input("ID_ORDINE", value=extracted_order_id)
 
     # Converti il file XLSX in CSV
     df = convert_xlsx_to_csv(uploaded_file)

@@ -92,6 +92,8 @@ def process_csv(data, discount_percentage):
 
     return output.getvalue(), final_df_filtered_complete
 
+st.write(data.head())  # Visualizza le prime righe per confermare gli indici delle colonne
+
 # Interfaccia Streamlit
 st.title("Nike order details")
 

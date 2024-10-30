@@ -86,12 +86,12 @@ def process_csv(data, discount_percentage, order_id):
     final_df_filtered_complete['Prezzo finale'] = final_df_filtered_complete.apply(
         lambda row: row['Prezzo all\'ingrosso'] * (1 - float(row['Percentuale sconto']) / 100), axis=1
     )
-    final_df_filtered_complete['Prezzo totale'] = final_df_filtered_complete.apply(
+    final_df_filtered_complete['TOT CONFERMATI'] = final_df_filtered_complete.apply(
         lambda row: row['Prezzo finale'] * row['Confermati'], axis=1
     )
 
     # Calcola il prezzo totale sui spediti
-    final_df_filtered_complete['Prezzo totale SPEDITI'] = final_df_filtered_complete.apply(
+    final_df_filtered_complete['TOT SPEDITI'] = final_df_filtered_complete.apply(
         lambda row: row['Prezzo finale'] * row['Spediti'], axis=1
     )
 
@@ -104,7 +104,7 @@ def process_csv(data, discount_percentage, order_id):
     final_df_filtered_complete = final_df_filtered_complete.fillna('')
 
     # Riorganizza le colonne per l'output finale
-    final_df_filtered_complete = final_df_filtered_complete[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Confermati', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'Prezzo totale', 'Prezzo totale SPEDITI']]
+    final_df_filtered_complete = final_df_filtered_complete[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Confermati', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'TOT CONFERMATI', 'TOT SPEDITI']]
 
     # Esportazione del DataFrame in Excel
     output = BytesIO()

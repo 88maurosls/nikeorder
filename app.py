@@ -25,7 +25,7 @@ def convert_xlsx_to_csv(file):
         return None
 
 # Funzione per processare il CSV e applicare il calcolo dello sconto
-def process_csv(data, discount_percentage, order_id, selected_option):
+def process_csv(data, discount_percentage, order_id, view_option):
     new_data = []
     current_model = None
     current_sizes = []
@@ -82,32 +82,24 @@ def process_csv(data, discount_percentage, order_id, selected_option):
     final_df_filtered_complete['Confermati'] = pd.to_numeric(final_df_filtered_complete['Confermati'], errors='coerce').fillna(0).astype(int)
     final_df_filtered_complete['Spediti'] = pd.to_numeric(final_df_filtered_complete['Spediti'], errors='coerce').fillna(0).astype(int)
 
-    # Calcola il prezzo finale e i totali in base alla scelta
+    # Calcola il prezzo finale
     final_df_filtered_complete['Prezzo finale'] = final_df_filtered_complete.apply(
         lambda row: row['Prezzo all\'ingrosso'] * (1 - float(row['Percentuale sconto']) / 100), axis=1
     )
-    
-    if selected_option == "CONFERMATI":
-        final_df_filtered_complete['TOT CONFERMATI'] = final_df_filtered_complete.apply(
-            lambda row: row['Prezzo finale'] * row['Confermati'], axis=1
-        )
-        # Rimuovi le colonne "Spediti" e "TOT SPEDITI"
-        final_df_filtered_complete = final_df_filtered_complete.drop(columns=['Spediti', 'TOT SPEDITI'], errors='ignore')
-        
-    elif selected_option == "SPEDITI":
-        final_df_filtered_complete['TOT SPEDITI'] = final_df_filtered_complete.apply(
-            lambda row: row['Prezzo finale'] * row['Spediti'], axis=1
-        )
-        # Rimuovi le colonne "Confermati" e "TOT CONFERMATI"
-        final_df_filtered_complete = final_df_filtered_complete.drop(columns=['Confermati', 'TOT CONFERMATI'], errors='ignore')
 
-    # Filtra le righe non rilevanti
-    final_df_filtered_complete = final_df_filtered_complete[final_df_filtered_complete['Prezzo finale'] > 0]
-    final_df_filtered_complete.reset_index(drop=True, inplace=True)
-    final_df_filtered_complete = final_df_filtered_complete.fillna('')
+    # Calcola il totale confermati e spediti
+    final_df_filtered_complete['TOT CONFERMATI'] = final_df_filtered_complete.apply(
+        lambda row: row['Prezzo finale'] * row['Confermati'], axis=1
+    )
+    final_df_filtered_complete['TOT SPEDITI'] = final_df_filtered_complete.apply(
+        lambda row: row['Prezzo finale'] * row['Spediti'], axis=1
+    )
 
-    # Riorganizza le colonne per l'output finale
-    final_df_filtered_complete = final_df_filtered_complete[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale'] + (['TOT CONFERMATI'] if selected_option == "CONFERMATI" else ['TOT SPEDITI'])]
+    # Seleziona le colonne in base all'opzione scelta
+    if view_option == "CONFERMATI":
+        final_df_filtered_complete = final_df_filtered_complete[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Confermati', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'TOT CONFERMATI']]
+    else:
+        final_df_filtered_complete = final_df_filtered_complete[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'TOT SPEDITI']]
 
     # Esportazione del DataFrame in Excel
     output = BytesIO()
@@ -130,8 +122,8 @@ if uploaded_file is not None:
     # Campo per l'ID ordine, precompilato con l'ID estratto se disponibile
     order_id = st.text_input("ID_ORDINE", value=extracted_order_id)
 
-    # Opzione per scegliere tra CONFERMATI e SPEDITI
-    selected_option = st.radio("Seleziona l'opzione", ("CONFERMATI", "SPEDITI"))
+    # Opzione di visualizzazione per "CONFERMATI" o "SPEDITI"
+    view_option = st.radio("Seleziona l'opzione di visualizzazione:", ("CONFERMATI", "SPEDITI"))
 
     # Converti il file XLSX in CSV
     df = convert_xlsx_to_csv(uploaded_file)
@@ -142,7 +134,7 @@ if uploaded_file is not None:
 
         if st.button("Elabora"):
             # Processa il CSV e calcola il risultato
-            processed_file, final_df = process_csv(df, discount_percentage, order_id, selected_option)
+            processed_file, final_df = process_csv(df, discount_percentage, order_id, view_option)
 
             # Mostra l'anteprima del file elaborato
             st.write("Anteprima del file elaborato:")

@@ -59,9 +59,11 @@ def process_csv(data, discount_percentage, order_id, view_option):
             current_product_type = row[row.values.tolist().index('Tipo di prodotto:') + 1]
         elif pd.notna(row[0]) and row[0] not in ['Misura', 'Totale qtà:', '']:
             # Aggiungi dati delle taglie e confermati/spediti al blocco corrente
+            confirmed_value = pd.to_numeric(row[5], errors='coerce') if pd.notna(row[5]) else 0
+            shipped_value = pd.to_numeric(row[8], errors='coerce') if pd.notna(row[8]) else 0
             current_sizes.append(str(row[0]))
-            current_confirmed.append(pd.to_numeric(row[5], errors='coerce').fillna(0).astype(int))
-            current_shipped.append(pd.to_numeric(row[8], errors='coerce').fillna(0).astype(int))
+            current_confirmed.append(int(confirmed_value))
+            current_shipped.append(int(shipped_value))
             current_upc.append(str(row[1]))
 
     # Aggiungi l'ultimo blocco di dati se presente

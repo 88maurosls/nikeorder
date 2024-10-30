@@ -29,8 +29,11 @@ def process_csv(data, discount_percentage):
     current_upc = []
     current_product_type = None
 
-    # Visualizza le prime righe del DataFrame per confermare gli indici
-    st.write(data.head())  # Questa riga è solo per debug; puoi rimuoverla dopo aver confermato gli indici
+    # Visualizza le colonne e le prime righe del DataFrame per individuare l'indice corretto
+    st.write("Colonne del DataFrame:")
+    st.write(data.columns)
+    st.write("Prime righe del DataFrame per confermare gli indici:")
+    st.write(data.head())
 
     for index, row in data.iterrows():
         if 'Modello/Colore:' in row.values:
@@ -52,7 +55,7 @@ def process_csv(data, discount_percentage):
         elif pd.notna(row[0]) and row[0] not in ['Misura', 'Totale qtà:', '']:
             current_sizes.append(str(row[0]))
             current_confirmed.append(str(row[5]))  # Assicurati che l'indice 5 corrisponda a "Confermati"
-            current_shipped.append(str(row[7]))  # Assicurati che l'indice 7 corrisponda a "Spediti"
+            current_shipped.append(str(row[8]))  # Cambia '8' con l'indice corretto di "Spediti"
             current_upc.append(str(row[1]))
 
     if current_model is not None:

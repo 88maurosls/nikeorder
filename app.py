@@ -25,28 +25,31 @@ def convert_xlsx_to_csv(file):
         return None
 
 # Funzione per processare il CSV e applicare il calcolo dello sconto
-def process_csv(data, discount_percentage, order_id):
+def process_csv(data, discount_percentage, order_id, view_option):
     new_data = []
     current_model = None
     current_sizes = []
     current_price = None
     current_confirmed = []
-    current_shipped = []  # Variabile per i valori "Spediti"
+    current_shipped = []
     current_model_name = None
     current_color_description = None
     current_upc = []
     current_product_type = None
 
     for index, row in data.iterrows():
+        # Controllo inizio di un nuovo blocco di dati
         if 'Modello/Colore:' in row.values:
             if current_model is not None:
+                # Aggiungi il blocco accumulato ai dati finali
                 for size, confirmed, shipped, upc in zip(current_sizes, current_confirmed, current_shipped, current_upc):
                     new_data.append([current_model, size, current_price, confirmed, shipped, current_model_name, current_color_description, upc, discount_percentage, current_product_type, order_id])
+            # Resetta i dati per un nuovo modello
             current_model = row[row.values.tolist().index('Modello/Colore:') + 1]
             current_price = row[row.values.tolist().index('Prezzo all\'ingrosso') + 1]
             current_sizes = []
             current_confirmed = []
-            current_shipped = []  # Inizializza lista per spediti
+            current_shipped = []
             current_upc = []
         elif 'Nome del modello:' in row.values:
             current_model_name = row[row.values.tolist().index('Nome del modello:') + 1]
@@ -55,63 +58,44 @@ def process_csv(data, discount_percentage, order_id):
         elif 'Tipo di prodotto:' in row.values:
             current_product_type = row[row.values.tolist().index('Tipo di prodotto:') + 1]
         elif pd.notna(row[0]) and row[0] not in ['Misura', 'Totale qtà:', '']:
+            # Aggiungi dati delle taglie e confermati/spediti al blocco corrente
             current_sizes.append(str(row[0]))
-            current_confirmed.append(str(row[5]))  # Assicurati che l'indice sia corretto per "Confermati"
-            current_shipped.append(str(row[8]))  # Usa l'indice corretto per "Spediti"
+            current_confirmed.append(pd.to_numeric(row[5], errors='coerce').fillna(0).astype(int))
+            current_shipped.append(pd.to_numeric(row[8], errors='coerce').fillna(0).astype(int))
             current_upc.append(str(row[1]))
 
+    # Aggiungi l'ultimo blocco di dati se presente
     if current_model is not None:
         for size, confirmed, shipped, upc in zip(current_sizes, current_confirmed, current_shipped, current_upc):
             new_data.append([current_model, size, current_price, confirmed, shipped, current_model_name, current_color_description, upc, discount_percentage, current_product_type, order_id])
 
-    # Filtra i dati finali
-    filtered_data_final = [entry for entry in new_data if entry[1] not in ['Riga articolo:', 'Nome del modello:', 'Descrizione colore:', 'Tipo di prodotto:', '']]
-
-    # Crea il DataFrame finale con tutte le colonne richieste
-    final_df_filtered_complete = pd.DataFrame(
-        filtered_data_final,
+    # Creazione del DataFrame finale
+    final_df = pd.DataFrame(
+        new_data,
         columns=['Modello/Colore', 'Misura', 'Prezzo all\'ingrosso', 'Confermati', 'Spediti', 'Nome del modello', 'Descrizione colore', 'Codice a Barre (UPC)', 'Percentuale sconto', 'Tipo di prodotto', 'ID_ORDINE']
     )
 
-    # Suddivisione del codice modello e colore
-    final_df_filtered_complete['Codice'] = final_df_filtered_complete['Modello/Colore'].apply(lambda x: x.split('-')[0])
-    final_df_filtered_complete['Colore'] = final_df_filtered_complete['Modello/Colore'].apply(lambda x: x.split('-')[1])
+    # Conversione dei dati numerici e calcoli di prezzo
+    final_df['Prezzo all\'ingrosso'] = final_df['Prezzo all\'ingrosso'].str.replace('€', '').str.replace(',', '.').astype(float)
+    final_df['Prezzo finale'] = final_df['Prezzo all\'ingrosso'] * (1 - discount_percentage / 100)
+    final_df['TOT CONFERMATI'] = final_df['Prezzo finale'] * final_df['Confermati']
+    final_df['TOT SPEDITI'] = final_df['Prezzo finale'] * final_df['Spediti']
 
-    # Conversioni e calcoli
-    final_df_filtered_complete['Prezzo all\'ingrosso'] = final_df_filtered_complete['Prezzo all\'ingrosso'].str.replace('€', '').str.replace(',', '.').astype(float)
-    final_df_filtered_complete['Confermati'] = pd.to_numeric(final_df_filtered_complete['Confermati'], errors='coerce').fillna(0).astype(int)
-    final_df_filtered_complete['Spediti'] = pd.to_numeric(final_df_filtered_complete['Spediti'], errors='coerce').fillna(0).astype(int)
+    # Rimozione delle righe con valori Confermati e Spediti a zero
+    final_df = final_df[(final_df['Confermati'] != 0) | (final_df['Spediti'] != 0)]
 
-    # Calcola il prezzo finale e totale sui confermati
-    final_df_filtered_complete['Prezzo finale'] = final_df_filtered_complete.apply(
-        lambda row: row['Prezzo all\'ingrosso'] * (1 - float(row['Percentuale sconto']) / 100), axis=1
-    )
-    final_df_filtered_complete['TOT CONFERMATI'] = final_df_filtered_complete.apply(
-        lambda row: row['Prezzo finale'] * row['Confermati'], axis=1
-    )
-
-    # Calcola il prezzo totale sui spediti
-    final_df_filtered_complete['TOT SPEDITI'] = final_df_filtered_complete.apply(
-        lambda row: row['Prezzo finale'] * row['Spediti'], axis=1
-    )
-
-    # Filtra le righe con confermati diversi da 0 e rimuove eventuali righe non rilevanti
-    final_df_filtered_complete = final_df_filtered_complete[final_df_filtered_complete['Confermati'] != 0]
-    final_df_filtered_complete = final_df_filtered_complete[~final_df_filtered_complete['Misura'].str.contains('Prezzi:|Tutti i prezzi al netto di I.V.A. e spese di spedizione e altre tasse che si', na=False)]
-
-    # Reimposta l'indice e riempie i valori NaN
-    final_df_filtered_complete.reset_index(drop=True, inplace=True)
-    final_df_filtered_complete = final_df_filtered_complete.fillna('')
-
-    # Riorganizza le colonne per l'output finale
-    final_df_filtered_complete = final_df_filtered_complete[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Confermati', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'TOT CONFERMATI', 'TOT SPEDITI']]
+    # Filtra le colonne visualizzate in base alla scelta dell'utente
+    if view_option == "CONFERMATI":
+        final_df = final_df[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Confermati', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'TOT CONFERMATI']]
+    else:
+        final_df = final_df[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'TOT SPEDITI']]
 
     # Esportazione del DataFrame in Excel
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        final_df_filtered_complete.to_excel(writer, index=False)
+        final_df.to_excel(writer, index=False)
 
-    return output.getvalue(), final_df_filtered_complete
+    return output.getvalue(), final_df
 
 # Interfaccia Streamlit
 st.title("Nike order details")
@@ -127,6 +111,9 @@ if uploaded_file is not None:
     # Campo per l'ID ordine, precompilato con l'ID estratto se disponibile
     order_id = st.text_input("ID_ORDINE", value=extracted_order_id)
 
+    # Opzione di visualizzazione per "CONFERMATI" o "SPEDITI"
+    view_option = st.radio("Seleziona l'opzione di visualizzazione:", ("CONFERMATI", "SPEDITI"))
+
     # Converti il file XLSX in CSV
     df = convert_xlsx_to_csv(uploaded_file)
 
@@ -136,7 +123,7 @@ if uploaded_file is not None:
 
         if st.button("Elabora"):
             # Processa il CSV e calcola il risultato
-            processed_file, final_df = process_csv(df, discount_percentage, order_id)
+            processed_file, final_df = process_csv(df, discount_percentage, order_id, view_option)
 
             # Mostra l'anteprima del file elaborato
             st.write("Anteprima del file elaborato:")

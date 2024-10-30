@@ -23,6 +23,7 @@ def process_csv(data, discount_percentage):
     current_sizes = []
     current_price = None
     current_confirmed = []
+    current_shipped = []  # Aggiungi variabile per i valori spediti
     current_model_name = None
     current_color_description = None
     current_upc = []
@@ -31,12 +32,13 @@ def process_csv(data, discount_percentage):
     for index, row in data.iterrows():
         if 'Modello/Colore:' in row.values:
             if current_model is not None:
-                for size, confirmed, upc in zip(current_sizes, current_confirmed, current_upc):
-                    new_data.append([current_model, size, current_price, confirmed, current_model_name, current_color_description, upc, discount_percentage, current_product_type])
+                for size, confirmed, shipped, upc in zip(current_sizes, current_confirmed, current_shipped, current_upc):
+                    new_data.append([current_model, size, current_price, confirmed, shipped, current_model_name, current_color_description, upc, discount_percentage, current_product_type])
             current_model = row[row.values.tolist().index('Modello/Colore:') + 1]
             current_price = row[row.values.tolist().index('Prezzo all\'ingrosso') + 1]
             current_sizes = []
             current_confirmed = []
+            current_shipped = []  # Inizializza lista per spediti
             current_upc = []
         elif 'Nome del modello:' in row.values:
             current_model_name = row[row.values.tolist().index('Nome del modello:') + 1]
@@ -47,21 +49,26 @@ def process_csv(data, discount_percentage):
         elif pd.notna(row[0]) and row[0] not in ['Misura', 'Totale qtà:', '']:
             current_sizes.append(str(row[0]))
             current_confirmed.append(str(row[5]))
+            current_shipped.append(str(row[7]))  # Aggiungi valore di "Spediti"
             current_upc.append(str(row[1]))
 
     if current_model is not None:
-        for size, confirmed, upc in zip(current_sizes, current_confirmed, current_upc):
-            new_data.append([current_model, size, current_price, confirmed, current_model_name, current_color_description, upc, discount_percentage, current_product_type])
+        for size, confirmed, shipped, upc in zip(current_sizes, current_confirmed, current_shipped, current_upc):
+            new_data.append([current_model, size, current_price, confirmed, shipped, current_model_name, current_color_description, upc, discount_percentage, current_product_type])
 
     filtered_data_final = [entry for entry in new_data if entry[1] not in ['Riga articolo:', 'Nome del modello:', 'Descrizione colore:', 'Tipo di prodotto:', '']]
 
-    final_df_filtered_complete = pd.DataFrame(filtered_data_final, columns=['Modello/Colore', 'Misura', 'Prezzo all\'ingrosso', 'Confermati', 'Nome del modello', 'Descrizione colore', 'Codice a Barre (UPC)', 'Percentuale sconto', 'Tipo di prodotto'])
+    final_df_filtered_complete = pd.DataFrame(
+        filtered_data_final,
+        columns=['Modello/Colore', 'Misura', 'Prezzo all\'ingrosso', 'Confermati', 'Spediti', 'Nome del modello', 'Descrizione colore', 'Codice a Barre (UPC)', 'Percentuale sconto', 'Tipo di prodotto']
+    )
 
     final_df_filtered_complete['Codice'] = final_df_filtered_complete['Modello/Colore'].apply(lambda x: x.split('-')[0])
     final_df_filtered_complete['Colore'] = final_df_filtered_complete['Modello/Colore'].apply(lambda x: x.split('-')[1])
 
     final_df_filtered_complete['Prezzo all\'ingrosso'] = final_df_filtered_complete['Prezzo all\'ingrosso'].str.replace('€', '').str.replace(',', '.').astype(float)
     final_df_filtered_complete['Confermati'] = pd.to_numeric(final_df_filtered_complete['Confermati'], errors='coerce').fillna(0).astype(int)
+    final_df_filtered_complete['Spediti'] = pd.to_numeric(final_df_filtered_complete['Spediti'], errors='coerce').fillna(0).astype(int)
 
     final_df_filtered_complete['Prezzo finale'] = final_df_filtered_complete.apply(
         lambda row: row['Prezzo all\'ingrosso'] * (1 - float(row['Percentuale sconto']) / 100), axis=1
@@ -77,7 +84,7 @@ def process_csv(data, discount_percentage):
     final_df_filtered_complete.reset_index(drop=True, inplace=True)
     final_df_filtered_complete = final_df_filtered_complete.fillna('')
 
-    final_df_filtered_complete = final_df_filtered_complete[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'Confermati', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'Prezzo totale']]
+    final_df_filtered_complete = final_df_filtered_complete[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'Confermati', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'Prezzo totale']]
 
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:

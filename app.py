@@ -38,13 +38,10 @@ def process_csv(data, discount_percentage, order_id, view_option):
     current_product_type = None
 
     for index, row in data.iterrows():
-        # Controllo inizio di un nuovo blocco di dati
         if 'Modello/Colore:' in row.values:
             if current_model is not None:
-                # Aggiungi il blocco accumulato ai dati finali
                 for size, confirmed, shipped, upc in zip(current_sizes, current_confirmed, current_shipped, current_upc):
                     new_data.append([current_model, size, current_price, confirmed, shipped, current_model_name, current_color_description, upc, discount_percentage, current_product_type, order_id])
-            # Resetta i dati per un nuovo modello
             current_model = row[row.values.tolist().index('Modello/Colore:') + 1]
             current_price = row[row.values.tolist().index('Prezzo all\'ingrosso') + 1]
             current_sizes = []
@@ -58,37 +55,32 @@ def process_csv(data, discount_percentage, order_id, view_option):
         elif 'Tipo di prodotto:' in row.values:
             current_product_type = row[row.values.tolist().index('Tipo di prodotto:') + 1]
         elif pd.notna(row[0]) and row[0] not in ['Misura', 'Totale qtà:', '']:
-            # Aggiungi dati delle taglie e confermati/spediti al blocco corrente
             current_sizes.append(str(row[0]))
-            current_confirmed.append(int(row[5]))  # Prende il valore così com'è da row[5]
-            current_shipped.append(int(row[8]))  # Prende il valore così com'è da row[8]
+            current_confirmed.append(str(row[5]))
+            current_shipped.append(str(row[8]))
             current_upc.append(str(row[1]))
 
-    # Aggiungi l'ultimo blocco di dati se presente
     if current_model is not None:
         for size, confirmed, shipped, upc in zip(current_sizes, current_confirmed, current_shipped, current_upc):
             new_data.append([current_model, size, current_price, confirmed, shipped, current_model_name, current_color_description, upc, discount_percentage, current_product_type, order_id])
 
-    # Creazione del DataFrame finale
+    # Crea il DataFrame finale con tutte le colonne richieste
     final_df = pd.DataFrame(
         new_data,
         columns=['Modello/Colore', 'Misura', 'Prezzo all\'ingrosso', 'Confermati', 'Spediti', 'Nome del modello', 'Descrizione colore', 'Codice a Barre (UPC)', 'Percentuale sconto', 'Tipo di prodotto', 'ID_ORDINE']
     )
 
-    # Conversione dei dati numerici e calcoli di prezzo
+    # Calcolo del Prezzo finale e Totale
     final_df['Prezzo all\'ingrosso'] = final_df['Prezzo all\'ingrosso'].str.replace('€', '').str.replace(',', '.').astype(float)
     final_df['Prezzo finale'] = final_df['Prezzo all\'ingrosso'] * (1 - discount_percentage / 100)
-    final_df['TOT CONFERMATI'] = final_df['Prezzo finale'] * final_df['Confermati']
-    final_df['TOT SPEDITI'] = final_df['Prezzo finale'] * final_df['Spediti']
+    final_df['TOT CONFERMATI'] = final_df['Prezzo finale'] * final_df['Confermati'].astype(int)
+    final_df['TOT SPEDITI'] = final_df['Prezzo finale'] * final_df['Spediti'].astype(int)
 
-    # Rimozione delle righe con valori Confermati e Spediti a zero
-    final_df = final_df[(final_df['Confermati'] != 0) | (final_df['Spediti'] != 0)]
-
-    # Filtra le colonne visualizzate in base alla scelta dell'utente
+    # Visualizzazione condizionale delle colonne
     if view_option == "CONFERMATI":
-        final_df = final_df[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Confermati', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'TOT CONFERMATI']]
+        final_df = final_df[['Modello/Colore', 'Descrizione colore', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Confermati', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'TOT CONFERMATI']]
     else:
-        final_df = final_df[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'TOT SPEDITI']]
+        final_df = final_df[['Modello/Colore', 'Descrizione colore', 'Codice a Barre (UPC)', 'ID_ORDINE', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'TOT SPEDITI']]
 
     # Esportazione del DataFrame in Excel
     output = BytesIO()
@@ -104,35 +96,24 @@ st.title("Nike order details")
 uploaded_file = st.file_uploader("Carica un file XLSX", type="xlsx")
 
 if uploaded_file is not None:
-    # Estrai il nome del file senza estensione e prova a ottenere l'ID_ORDINE
     original_filename = os.path.splitext(uploaded_file.name)[0]
     extracted_order_id = extract_order_id(original_filename)
 
-    # Campo per l'ID ordine, precompilato con l'ID estratto se disponibile
     order_id = st.text_input("ID_ORDINE", value=extracted_order_id)
-
-    # Opzione di visualizzazione per "CONFERMATI" o "SPEDITI"
     view_option = st.radio("Seleziona l'opzione di visualizzazione:", ("CONFERMATI", "SPEDITI"))
 
-    # Converti il file XLSX in CSV
     df = convert_xlsx_to_csv(uploaded_file)
 
     if df is not None:
-        # Input per la percentuale di sconto
         discount_percentage = st.number_input("Inserisci la percentuale di sconto sul prezzo whl", min_value=0.0, max_value=100.0, step=0.1)
 
         if st.button("Elabora"):
-            # Processa il CSV e calcola il risultato
             processed_file, final_df = process_csv(df, discount_percentage, order_id, view_option)
 
-            # Mostra l'anteprima del file elaborato
             st.write("Anteprima del file elaborato:")
             st.write(final_df)
 
-            # Nome del file processato
             processed_filename = f"{original_filename}_processed.xlsx"
-
-            # Permetti il download del file Excel elaborato
             st.download_button(
                 label="Scarica il file elaborato",
                 data=processed_file,

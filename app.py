@@ -17,7 +17,7 @@ def convert_xlsx_to_csv(file):
         return None
 
 # Funzione per processare il CSV e applicare il calcolo dello sconto
-def process_csv(data, discount_percentage):
+def process_csv(data, discount_percentage, order_id):
     new_data = []
     current_model = None
     current_sizes = []
@@ -33,7 +33,7 @@ def process_csv(data, discount_percentage):
         if 'Modello/Colore:' in row.values:
             if current_model is not None:
                 for size, confirmed, shipped, upc in zip(current_sizes, current_confirmed, current_shipped, current_upc):
-                    new_data.append([current_model, size, current_price, confirmed, shipped, current_model_name, current_color_description, upc, discount_percentage, current_product_type])
+                    new_data.append([current_model, size, current_price, confirmed, shipped, current_model_name, current_color_description, upc, discount_percentage, current_product_type, order_id])
             current_model = row[row.values.tolist().index('Modello/Colore:') + 1]
             current_price = row[row.values.tolist().index('Prezzo all\'ingrosso') + 1]
             current_sizes = []
@@ -54,7 +54,7 @@ def process_csv(data, discount_percentage):
 
     if current_model is not None:
         for size, confirmed, shipped, upc in zip(current_sizes, current_confirmed, current_shipped, current_upc):
-            new_data.append([current_model, size, current_price, confirmed, shipped, current_model_name, current_color_description, upc, discount_percentage, current_product_type])
+            new_data.append([current_model, size, current_price, confirmed, shipped, current_model_name, current_color_description, upc, discount_percentage, current_product_type, order_id])
 
     # Filtra i dati finali
     filtered_data_final = [entry for entry in new_data if entry[1] not in ['Riga articolo:', 'Nome del modello:', 'Descrizione colore:', 'Tipo di prodotto:', '']]
@@ -62,7 +62,7 @@ def process_csv(data, discount_percentage):
     # Crea il DataFrame finale con tutte le colonne richieste
     final_df_filtered_complete = pd.DataFrame(
         filtered_data_final,
-        columns=['Modello/Colore', 'Misura', 'Prezzo all\'ingrosso', 'Confermati', 'Spediti', 'Nome del modello', 'Descrizione colore', 'Codice a Barre (UPC)', 'Percentuale sconto', 'Tipo di prodotto']
+        columns=['Modello/Colore', 'Misura', 'Prezzo all\'ingrosso', 'Confermati', 'Spediti', 'Nome del modello', 'Descrizione colore', 'Codice a Barre (UPC)', 'Percentuale sconto', 'Tipo di prodotto', 'ID_ORDINE']
     )
 
     # Suddivisione del codice modello e colore
@@ -91,7 +91,7 @@ def process_csv(data, discount_percentage):
     final_df_filtered_complete = final_df_filtered_complete.fillna('')
 
     # Riorganizza le colonne per l'output finale
-    final_df_filtered_complete = final_df_filtered_complete[['Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'Confermati', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'Prezzo totale']]
+    final_df_filtered_complete = final_df_filtered_complete[['ID_ORDINE', 'Modello/Colore', 'Descrizione colore', 'Codice', 'Nome del modello', 'Tipo di prodotto', 'Colore', 'Misura', 'Codice a Barre (UPC)', 'Confermati', 'Spediti', 'Prezzo all\'ingrosso', 'Percentuale sconto', 'Prezzo finale', 'Prezzo totale']]
 
     # Esportazione del DataFrame in Excel
     output = BytesIO()
@@ -110,6 +110,9 @@ if uploaded_file is not None:
     # Estrai il nome del file senza estensione
     original_filename = os.path.splitext(uploaded_file.name)[0]
 
+    # Campo per l'ID ordine
+    order_id = st.text_input("ID_ORDINE")
+
     # Converti il file XLSX in CSV
     df = convert_xlsx_to_csv(uploaded_file)
 
@@ -119,7 +122,7 @@ if uploaded_file is not None:
 
         if st.button("Elabora"):
             # Processa il CSV e calcola il risultato
-            processed_file, final_df = process_csv(df, discount_percentage)
+            processed_file, final_df = process_csv(df, discount_percentage, order_id)
 
             # Mostra l'anteprima del file elaborato
             st.write("Anteprima del file elaborato:")
